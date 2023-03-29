@@ -1,5 +1,7 @@
 package study.datajpa.repository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,8 @@ class MemberRepositoryTest {
   MemberRepository memberRepository;
   @Autowired
   TeamRepository teamRepository;
+  @PersistenceContext
+  EntityManager em;
 
   @Test
   void testMember() {
@@ -200,4 +204,89 @@ class MemberRepositoryTest {
     assertThat(page.hasNext()).isTrue();
 
   }
+
+  @Test
+  public void bulkUpdate() {
+
+    //given
+    memberRepository.save(new Member("member1", 10));
+    memberRepository.save(new Member("member2", 19));
+    memberRepository.save(new Member("member3", 20));
+    memberRepository.save(new Member("member4", 21));
+    memberRepository.save(new Member("member5", 40));
+
+    //when
+    int resultCount = memberRepository.bulkAgePlus(20);
+//    em.flush();
+//    em.clear();
+
+    List<Member> result = memberRepository.findByUsername("member5");
+    Member member = result.get(0);
+    System.out.println("member = " + member);
+
+    //then
+    assertThat(resultCount).isEqualTo(3);
+  }
+
+  @Test
+  public void finMemberLazy() {
+    //given
+    //member1 -> teamA
+    //member2 -> teamB
+
+    Team teamA = new Team("teamA");
+    Team teamB = new Team("teamB");
+    teamRepository.save(teamA);
+    teamRepository.save(teamB);
+    Member member1 = new Member("member1", 10, teamA);
+    Member member2 = new Member("member2", 10, teamB);
+    memberRepository.save(member1);
+    memberRepository.save(member2);
+
+    em.flush();
+    em.clear();
+
+    //when
+    List<Member> members = memberRepository.findAll();
+    for (Member member : members) {
+      System.out.println("member = " + member.getUsername());
+      System.out.println("member.teamClass = " + member.getTeam().getClass());
+      System.out.println("member.team = " + member.getTeam().getName());
+
+    }
+
+
+  }
+  @Test
+  public void queryHint() {
+
+    //given
+    Member member1 = memberRepository.save(new Member("member1", 10));
+    em.flush();
+    em.clear();
+
+    //when
+    Member findMember = memberRepository.findReadOnlyByUsername("member1");
+    findMember.setUsername("member2");
+
+    em.flush();
+  }
+
+  @Test
+  public void lock() {
+
+    //given
+    Member member1 = memberRepository.save(new Member("member1", 10));
+    em.flush();
+    em.clear();
+
+    //when
+    List<Member> result = memberRepository.findLockByUsername("member1");
+
+    em.flush();
+
+  }
+
+
+
 }
